@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Quiz Game</title>
+  <style>
+    /* Reset defaults and enable box-sizing */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      transition: background 0.3s, color 0.3s;
+    }
+    /* Flex container for centering and layout */
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 90%;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background: #f9f9f9;
+    }
+    /* Style controls such as inputs, buttons, and selects */
+    input, button, select {
+      padding: 10px;
+      margin: 5px;
+      font-size: 16px;
+    }
+    /* Hide elements */
+    .hidden {
+      display: none;
+    }
+    h1, h2 {
+      margin-bottom: 20px;
+    }
+    /* Flex layout for quiz selection buttons */
+    .quiz-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    /* Flex layout for quiz question answers */
+    .option {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+      padding-left: 20px;
+      cursor: pointer;
+    }
+    .timer {
+      font-size: 20px;
+      margin: 20px 0;
+    }
+    /* Theme classes */
+    .default-theme {
+      background: #ffffff;
+      color: #000;
+    }
+    .dark-theme {
+      background: #333;
+      color: #fff;
+    }
+    .blue-theme {
+      background: #e0f7fa;
+      color: #006064;
+    }
+    .green-theme {
+      background: #e8f5e9;
+      color: #1b5e20;
+    }
+    .purple-theme {
+      background: #f3e5f5;
+      color: #4a148c;
+    }
+  </style>
+</head>
+<body class="default-theme">
+  <!-- AUTHENTICATION PAGE -->
+  <div id="authContainer" class="container">
+    <h1>Quiz Game - Login / Signup</h1>
+    <div id="authForms">
+      <!-- LOGIN FORM -->
+      <div id="loginForm">
+        <h2>Login</h2>
+        <input type="text" id="loginUsername" placeholder="Username"><br>
+        <input type="password" id="loginPassword" placeholder="Password"><br>
+        <button onclick="login()">Login</button>
+        <p>
+          Don't have an account? 
+          <a href="#" onclick="showSignup()">Signup</a>
+        </p>
+      </div>
+      <!-- SIGNUP FORM -->
+      <div id="signupForm" class="hidden">
+        <h2>Signup</h2>
+        <input type="text" id="signupUsername" placeholder="Username"><br>
+        <input type="password" id="signupPassword" placeholder="Password"><br>
+        <input type="password" id="signupConfirmPassword" placeholder="Confirm Password"><br>
+        <button onclick="signup()">Signup</button>
+        <p>
+          Already have an account? 
+          <a href="#" onclick="showLogin()">Login</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ SELECTION PAGE -->
+  <div id="quizSelection" class="container hidden">
+    <h1>Select a Quiz</h1>
+    <div>
+      <label for="themeSelector">Choose Theme:</label>
+      <select id="themeSelector" onchange="changeTheme()">
+        <option value="default-theme">Default</option>
+        <option value="dark-theme">Dark</option>
+        <option value="blue-theme">Blue</option>
+        <option value="green-theme">Green</option>
+        <option value="purple-theme">Purple</option>
+      </select>
+    </div>
+    <div class="quiz-buttons">
+      <button onclick="startQuiz('logical')">Logical &amp; Reasoning</button>
+      <button onclick="startQuiz('coding')">Coding</button>
+      <button onclick="startQuiz('general')">General Knowledge</button>
+      <button onclick="startQuiz('technology')">Technology</button>
+      <button onclick="startQuiz('sports')">Sports</button>
+    </div>
+    <button onclick="restart()">Restart</button>
+  </div>
+
+  <!-- QUIZ CONTAINER PAGE -->
+  <div id="quizContainer" class="container hidden">
+    <h1 id="quizTitle"></h1>
+    <div class="timer">Time Left: <span id="timerCount">30</span>s</div>
+    <div id="questionContainer" class="question-section"></div>
+    <button id="nextButton" onclick="nextQuestion()">Next</button>
+  </div>
+
+  <!-- RESULT PAGE -->
+  <div id="resultContainer" class="container hidden">
+    <h1>Quiz Result</h1>
+    <p id="scoreDisplay"></p>
+    <p id="accuracyDisplay"></p>
+    <p id="rankDisplay"></p>
+    <!-- Canvas to show a circular accurary indicator -->
+    <canvas id="accuracyChart" width="200" height="200"></canvas>
+    <div id="answerReview"></div>
+    <button onclick="restart()">Restart Quiz</button>
+  </div>
+
+  <script>
+    /*************
+     * AUTHENTICATION FUNCTIONS
+     *************/
+    let currentUser = "guest"; // Default user before login
+
+    function showSignup() {
+      document.getElementById("loginForm").classList.add("hidden");
+      document.getElementById("signupForm").classList.remove("hidden");
+    }
+
+    function showLogin() {
+      document.getElementById("signupForm").classList.add("hidden");
+      document.getElementById("loginForm").classList.remove("hidden");
+    }
+
+    function signup() {
+      const username = document.getElementById("signupUsername").value;
+      const password = document.getElementById("signupPassword").value;
+      const confirmPassword = document.getElementById("signupConfirmPassword").value;
+      if (password !== confirmPassword) {
+        alert("Passwords do not match!");
+        return;
+      }
+      // WARNING: In production use secure backend storage for credentials.
+      localStorage.setItem("user", JSON.stringify({ username, password }));
+      alert("Signup successful! Please login.");
+      showLogin();
+    }
+
+    function login() {
+      const username = document.getElementById("loginUsername").value;
+      const password = document.getElementById("loginPassword").value;
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (user && user.username === username && user.password === password) {
+        alert("Login successful!");
+        currentUser = username;
+        document.getElementById("authContainer").classList.add("hidden");
+        document.getElementById("quizSelection").classList.remove("hidden");
+      } else {
+        alert("Invalid credentials!");
+      }
+    }
+
+    /*************
+     * THEME CUSTOMIZATION
+     *************/
+    function changeTheme() {
+      const theme = document.getElementById("themeSelector").value;
+      document.body.className = theme;
+    }
+
+    /*************
+     * QUIZ DATA & LOGIC
+     *************/
+    const quizData = {
+      logical: { title: "Logical & Reasoning Quiz", questions: [] },
+      coding: { title: "Coding Quiz", questions: [] },
+      general: { title: "General Knowledge Quiz", questions: [] },
+      technology: { title: "Technology Quiz", questions: [] },
+      sports: { title: "Sports Quiz", questions: [] }
+    };
+
+    // Populate each quiz with 25 dummy questions.
+    Object.keys(quizData).forEach(category => {
+      for (let i = 1; i <= 25; i++) {
+        quizData[category].questions.push({
+          question: `${category.charAt(0).toUpperCase() + category.slice(1)} Question ${i}: What is the answer?`,
+          options: ["A", "B", "C", "D"],
+          correct: "A"  // Dummy correct answer
+        });
+      }
+    });
+
+    // Quiz variables
+    let currentQuiz;
+    let currentQuestionIndex = 0;
+    let score = 0;
+    let timer;
+    let timeLeft = 30;
+    const userAnswers = [];
+
+    function startQuiz(category) {
+      currentQuiz = quizData[category];
+      document.getElementById("quizTitle").innerText = currentQuiz.title;
+      document.getElementById("quizSelection").classList.add("hidden");
+      document.getElementById("quizContainer").classList.remove("hidden");
+      currentQuestionIndex = 0;
+      score = 0;
+      userAnswers.length = 0;
+      showQuestion();
+    }
+
+    function showQuestion() {
+      clearInterval(timer);
+      timeLeft = 30;
+      document.getElementById("timerCount").innerText = timeLeft;
+      timer = setInterval(() => {
+        timeLeft--;
+        document.getElementById("timerCount").innerText = timeLeft;
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          recordAnswer(null);
+          nextQuestion();
+        }
+      }, 1000);
+
+      const questionObj = currentQuiz.questions[currentQuestionIndex];
+      const container = document.getElementById("questionContainer");
+      container.innerHTML = "";
+      const qElem = document.createElement("p");
+      qElem.innerText = questionObj.question;
+      container.appendChild(qElem);
+      questionObj.options.forEach(option => {
+        const label = document.createElement("label");
+        label.classList.add("option");
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "option";
+        radio.value = option;
+        label.appendChild(radio);
+        label.appendChild(document.createTextNode(option));
+        container.appendChild(label);
+      });
+    }
+
+    function recordAnswer(selected) {
+      const currentQuestion = currentQuiz.questions[currentQuestionIndex];
+      if (selected === currentQuestion.correct) {
+        score++;
+      }
+      userAnswers.push({
+        question: currentQuestion.question,
+        selected: selected,
+        correct: currentQuestion.correct
+      });
+    }
+
+    function nextQuestion() {
+      const selectedOption = document.querySelector('input[name="option"]:checked');
+      const answer = selectedOption ? selectedOption.value : null;
+      recordAnswer(answer);
+      currentQuestionIndex++;
+      if (currentQuestionIndex < currentQuiz.questions.length) {
+        showQuestion();
+      } else {
+        endQuiz();
+      }
+    }
+
+    // Function to save the score to the server via a POST request.
+    function saveScoreToServer(username, quizTitle, score, accuracy) {
+      fetch('http://localhost:3000/api/saveScore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: username,
+          quiz: quizTitle,
+          score: score,
+          accuracy: accuracy,
+          date: new Date().toISOString()
+        })
+      })
+      .then(response => response.json())
+      .then(data => console.log("Score saved on server:", data))
+      .catch(error => console.error("Error saving score:", error));
+    }
+
+    // Function to draw a circular (pie chart–style) accuracy indicator.
+    function drawAccuracyChart(accuracy) {
+      const canvas = document.getElementById("accuracyChart");
+      if (!canvas.getContext) return;
+      const ctx = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = Math.min(width, height) / 2 - 10; // Leave some margin.
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Draw background circle (full circle in light gray)
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+      ctx.lineWidth = 20;
+      ctx.strokeStyle = "#e6e6e6";
+      ctx.stroke();
+
+      // Draw accuracy arc based on percentage.
+      const endAngle = (accuracy / 100) * 2 * Math.PI;
+      ctx.beginPath();
+      // Start at the top (-90° in radians is -0.5 * Math.PI)
+      ctx.arc(centerX, centerY, radius, -0.5 * Math.PI, -0.5 * Math.PI + endAngle);
+      ctx.lineWidth = 20;
+      ctx.strokeStyle = "#00cc66";  // Change this color as needed.
+      ctx.stroke();
+
+      // Optional: Add text in the center with the accuracy percentage.
+      ctx.font = "24px Arial";
+      ctx.fillStyle = "#333";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(accuracy + "%", centerX, centerY);
+    }
+
+    function endQuiz() {
+      clearInterval(timer);
+      document.getElementById("quizContainer").classList.add("hidden");
+      document.getElementById("resultContainer").classList.remove("hidden");
+      document.getElementById("scoreDisplay").innerText = `Your score: ${score} out of ${currentQuiz.questions.length}`;
+
+      const accuracy = ((score / currentQuiz.questions.length) * 100).toFixed(2);
+      document.getElementById("accuracyDisplay").innerText = `Accuracy: ${accuracy}%`;
+
+      let rank = "";
+      if (accuracy >= 90) rank = "S";
+      else if (accuracy >= 75) rank = "A";
+      else if (accuracy >= 50) rank = "B";
+      else rank = "C";
+      document.getElementById("rankDisplay").innerText = `Rank: ${rank}`;
+
+      // Draw the circular accuracy chart.
+      drawAccuracyChart(parseFloat(accuracy));
+
+      // Save the score to the server.
+      saveScoreToServer(currentUser, currentQuiz.title, score, accuracy);
+
+      // Display review of answers.
+      const reviewDiv = document.getElementById("answerReview");
+      reviewDiv.innerHTML = "<h3>Review Answers:</h3>";
+      userAnswers.forEach((ans, index) => {
+        const div = document.createElement("div");
+        div.style.marginBottom = "15px";
+        div.innerHTML = `<strong>Q${index + 1}:</strong> ${ans.question}<br>
+                         Your Answer: ${ans.selected !== null ? ans.selected : "No Answer"}<br>
+                         Correct Answer: ${ans.correct}<br>`;
+        reviewDiv.appendChild(div);
+      });
+    }
+
+    // Logout function – logs out the user and resets the UI.
+    function logout() {
+      clearInterval(timer);
+      currentUser = "guest";
+      document.getElementById("quizSelection").classList.add("hidden");
+      document.getElementById("quizContainer").classList.add("hidden");
+      document.getElementById("resultContainer").classList.add("hidden");
+      document.getElementById("authContainer").classList.remove("hidden");
+      alert("You have been logged out because the application is running in the background.");
+    }
+
+    // Logout automatically when the page loses focus or is hidden.
+    document.addEventListener("visibilitychange", function() {
+      if (document.visibilityState === 'hidden' && currentUser !== "guest") {
+        logout();
+      }
+    });
+
+    function restart() {
+      clearInterval(timer);
+      document.getElementById("resultContainer").classList.add("hidden");
+      document.getElementById("quizContainer").classList.add("hidden");
+      document.getElementById("quizSelection").classList.add("hidden");
+      document.getElementById("authContainer").classList.remove("hidden");
+    }
+  </script>
+</body>
+</html>
